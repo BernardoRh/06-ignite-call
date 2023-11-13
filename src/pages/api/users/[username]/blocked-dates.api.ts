@@ -44,22 +44,20 @@ export default async function Availability(
 
   const blockedDatesRaw: Array<{ date: number }> = await prisma.$queryRaw`
     SELECT
-      EXTRACT(DAY FROM S.date) AS date,
-      COUNT(S.date) as amount,
-      ((UTI.time_end_in_minutes - UTI.time_start_in_minutes) / 60) AS size
-    FROM schedulings S
+      EXTRACT(DAY FROM schedulings.date) AS dates,
+      COUNT(schedulings.date) AS amount
+    FROM schedulings
 
-    LEFT JOIN user_time_intervals UTI
-      ON UTI.week_day = WEEKDAY(DATE_ADD(S.date, INTERVAL 1 DAY))
+    LEFT JOIN user_time_intervals
+      ON user_time_intervals.week_day = EXTRACT(ISODOW FROM schedulings.date) + 1
 
-    WHERE S.user_id = ${user.id}
-      AND DATE_FORMAT(S.date, "%Y-%m") = ${`${year}-${month}`}
-
-    GROUP BY EXTRACT(DAY FROM S.date),
-      ((UTI.time_end_in_minutes - UTI.time_start_in_minutes) / 60)
-
-    HAVING amount >= size
+    WHERE schedulings.user_id = ${`'${user.id}'`}
+      AND to_char(schedulings.date, 'YYYY-mm') = ${`'${year}-${month}'`}
+    
+    GROUP BY EXTRACT(DAY FROM schedulings.date)
   `
+
+  console.log('This is the thing: ', blockedDatesRaw)
 
   const blockedDates = blockedDatesRaw.map((item) => item.date)
 
